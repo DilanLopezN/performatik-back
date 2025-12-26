@@ -1,0 +1,362 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider   = "prisma-client" // or `prisma-client-js`
+  output     = "../generated/prisma"
+  engineType = "client" // enable Prisma ORM without Rust
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ================================
+// File Upload Model
+// ================================
+model File {
+  id           String   @id @default(uuid())
+  filename     String
+  originalName String   @map("original_name")
+  mimeType     String   @map("mime_type")
+  size         Int
+  key          String   @unique // R2 object key
+  url          String // Public URL
+  uploadedBy   String?  @map("uploaded_by")
+  metadata     Json? // Additional metadata
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("files")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum HabitType {
+  ADDICTION
+  CUSTOM
+}
+
+enum HabitCheckinStatus {
+  SUCCESS
+  FAIL
+  SKIPPED
+}
+
+enum Visibility {
+  PRIVATE
+  INVITE_ONLY
+}
+
+enum GroupPostType {
+  DAILY_CHECKIN
+  MOTIVATION
+  WORKOUT_CHECKIN
+  BODY_CHECKIN
+}
+
+enum ReactionType {
+  LIKE
+  FIRE
+  CLAP
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  timezone     String   @default("America/Sao_Paulo")
+  weightKg     Decimal? @db.Decimal(5, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  habits            Habit[]
+  hydrationProfile  HydrationProfile?
+  hydrationLogs     HydrationLog[]
+  bodyProfile       BodyProfile?
+  bodyCheckins      BodyCheckin[]
+  motivationalNotes MotivationalNote[]
+  mediaAssets       MediaAsset[]
+
+  ownedGroups        Group[]             @relation("GroupOwner")
+  groupMemberships   GroupMember[]
+  groupPosts         GroupPost[]         @relation("GroupPostAuthor")
+  groupPostComments  GroupPostComment[]
+  groupPostReactions GroupPostReaction[]
+  notificationRules  NotificationRule[]
+
+  @@index([createdAt])
+}
+
+model Habit {
+  id          String    @id @default(uuid())
+  ownerUserId String
+  type        HabitType
+  title       String
+  isActive    Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner    User                @relation(fields: [ownerUserId], references: [id])
+  relapses HabitRelapse[]
+  checkins HabitDailyCheckin[]
+
+  @@index([ownerUserId, type])
+}
+
+model HabitRelapse {
+  id        String   @id @default(uuid())
+  habitId   String
+  relapseAt DateTime
+  note      String?
+
+  createdAt DateTime @default(now())
+
+  habit Habit @relation(fields: [habitId], references: [id])
+
+  @@index([habitId, relapseAt])
+}
+
+model HabitDailyCheckin {
+  id          String             @id @default(uuid())
+  habitId     String
+  checkinDate DateTime           @db.Date
+  status      HabitCheckinStatus
+  note        String?
+
+  createdAt DateTime @default(now())
+
+  habit Habit @relation(fields: [habitId], references: [id])
+
+  @@unique([habitId, checkinDate])
+  @@index([habitId, checkinDate])
+}
+
+model HydrationProfile {
+  id          String  @id @default(uuid())
+  userId      String  @unique
+  dailyGoalMl Int
+  goalFormula String?
+
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model HydrationLog {
+  id       String   @id @default(uuid())
+  userId   String
+  logDate  DateTime @db.Date
+  amountMl Int
+  loggedAt DateTime
+  source   String?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, logDate])
+  @@index([userId, loggedAt])
+}
+
+model NotificationRule {
+  id              String   @id @default(uuid())
+  userId          String
+  type            String // MVP: "DRINK_WATER" (string p/ flexibilidade)
+  isEnabled       Boolean  @default(true)
+  startTime       DateTime @db.Time
+  endTime         DateTime @db.Time
+  intervalMinutes Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, type])
+}
+
+model BodyProfile {
+  id       String @id @default(uuid())
+  userId   String @unique
+  heightCm Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model BodyCheckin {
+  id            String   @id @default(uuid())
+  userId        String
+  weekStartDate DateTime @db.Date
+  notes         String?
+
+  createdAt DateTime @default(now())
+
+  user         User               @relation(fields: [userId], references: [id])
+  measurements BodyMeasurement?
+  photos       BodyCheckinPhoto[]
+
+  @@unique([userId, weekStartDate])
+  @@index([userId, weekStartDate])
+}
+
+model BodyMeasurement {
+  id            String @id @default(uuid())
+  bodyCheckinId String @unique
+
+  weightKg Decimal? @db.Decimal(5, 2)
+  waistCm  Decimal? @db.Decimal(5, 2)
+  chestCm  Decimal? @db.Decimal(5, 2)
+  hipCm    Decimal? @db.Decimal(5, 2)
+  armCm    Decimal? @db.Decimal(5, 2)
+  thighCm  Decimal? @db.Decimal(5, 2)
+
+  bodyCheckin BodyCheckin @relation(fields: [bodyCheckinId], references: [id])
+}
+
+model MotivationalNote {
+  id      String  @id @default(uuid())
+  userId  String
+  title   String?
+  content String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+}
+
+// Centraliza qualquer imagem (evolução corporal, posts do grupo, etc.)
+model MediaAsset {
+  id              String @id @default(uuid())
+  ownerUserId     String
+  storageProvider String
+  bucket          String
+  objectKey       String
+  contentType     String
+  sizeBytes       BigInt
+  width           Int?
+  height          Int?
+
+  createdAt DateTime @default(now())
+
+  owner             User               @relation(fields: [ownerUserId], references: [id])
+  bodyCheckinPhotos BodyCheckinPhoto[]
+  groupPostMedias   GroupPostMedia[]
+
+  @@index([ownerUserId, createdAt])
+}
+
+model BodyCheckinPhoto {
+  id            String @id @default(uuid())
+  bodyCheckinId String
+  mediaAssetId  String
+  position      Int
+
+  bodyCheckin BodyCheckin @relation(fields: [bodyCheckinId], references: [id])
+  media       MediaAsset  @relation(fields: [mediaAssetId], references: [id])
+
+  @@unique([bodyCheckinId, position])
+  @@index([bodyCheckinId])
+}
+
+model Group {
+  id          String     @id @default(uuid())
+  ownerUserId String
+  name        String
+  description String?
+  visibility  Visibility @default(PRIVATE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner   User          @relation("GroupOwner", fields: [ownerUserId], references: [id])
+  members GroupMember[]
+  posts   GroupPost[]
+
+  @@index([ownerUserId])
+}
+
+model GroupMember {
+  groupId  String
+  userId   String
+  role     String // MVP: "OWNER" | "ADMIN" | "MEMBER"
+  joinedAt DateTime @default(now())
+
+  group Group @relation(fields: [groupId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@id([groupId, userId])
+  @@index([userId])
+}
+
+model GroupPost {
+  id           String        @id @default(uuid())
+  groupId      String
+  authorUserId String
+  postType     GroupPostType
+  content      String?
+  postDate     DateTime?     @db.Date // obrigatório p/ DAILY_CHECKIN (regra de negócio)
+  createdAt    DateTime      @default(now())
+
+  group  Group @relation(fields: [groupId], references: [id])
+  author User  @relation("GroupPostAuthor", fields: [authorUserId], references: [id])
+
+  media     GroupPostMedia[]
+  reactions GroupPostReaction[]
+  comments  GroupPostComment[]
+
+  @@index([groupId, postDate])
+  @@index([groupId, createdAt])
+  @@index([authorUserId, createdAt])
+}
+
+model GroupPostMedia {
+  id           String @id @default(uuid())
+  groupPostId  String
+  mediaAssetId String
+  position     Int
+
+  post  GroupPost  @relation(fields: [groupPostId], references: [id])
+  media MediaAsset @relation(fields: [mediaAssetId], references: [id])
+
+  @@unique([groupPostId, position])
+  @@index([groupPostId])
+}
+
+model GroupPostReaction {
+  groupPostId String
+  userId      String
+  reaction    ReactionType
+  createdAt   DateTime     @default(now())
+
+  post GroupPost @relation(fields: [groupPostId], references: [id])
+  user User      @relation(fields: [userId], references: [id])
+
+  @@id([groupPostId, userId, reaction])
+  @@index([groupPostId, createdAt])
+}
+
+model GroupPostComment {
+  id           String   @id @default(uuid())
+  groupPostId  String
+  authorUserId String
+  content      String
+  createdAt    DateTime @default(now())
+
+  post   GroupPost @relation(fields: [groupPostId], references: [id])
+  author User      @relation(fields: [authorUserId], references: [id])
+
+  @@index([groupPostId, createdAt])
+}

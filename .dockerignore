@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+
+# Build artifacts
+dist/
+build/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Documentation
+README.md
+docs/
+
+# Test files
+coverage/
+*.spec.ts
+*.test.ts
+test/
+__tests__/
+
+# Logs
+*.log
+logs/
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.docker/
+
+# Misc
+.DS_Store
+*.md
+.eslintrc.js
+.prettierrc
+jest.config.js
