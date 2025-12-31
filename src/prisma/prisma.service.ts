@@ -4,7 +4,8 @@ import {
   OnModuleDestroy,
   Logger,
 } from '@nestjs/common';
-import { PrismaClient, Prisma } from '@prisma/client';
+
+import { Prisma, PrismaClient } from '@prisma/client';
 
 type PrismaDelegateWithDeleteMany = {
   deleteMany: (args?: unknown) => Promise<unknown>;

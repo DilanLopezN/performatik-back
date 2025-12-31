@@ -5,6 +5,7 @@ import { HealthModule } from './modules/health/health.module';
 import { UploadModule } from './modules/upload/upload.module';
 import configuration from './config/configuration';
 import { validationSchema } from './config/validation.schema';
+import { AuthModule } from './modules/auth';
 
 @Module({
   imports: [
@@ -21,6 +22,9 @@ import { validationSchema } from './config/validation.schema';
 
     // Database
     PrismaModule,
+
+    //Auth
+    AuthModule,
 
     // Feature modules
     HealthModule,
